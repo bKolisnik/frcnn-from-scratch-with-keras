@@ -5,4 +5,4 @@ Keras==2.2.4
 numpy
 opencv-python
 sklearn
-tensorflow
+tensorflow==1.12.0
