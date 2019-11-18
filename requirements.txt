@@ -1,4 +1,6 @@
 h5py
+numpy
+six
 Keras==2.2.4
 numpy
 opencv-python
