@@ -41,7 +41,7 @@ def write_file(input_path,output_file):
 
 # 	open defect text file
 # 		for each line in the text file 
-#			write line in output text file in the following format:
+#			write line in output text file in the following format:q
 #				(text_file_name.replace('.txt','').(append('_test.jpg'), x1,x2,y1,y2, defect)
 
 def write_defects(input_path,output_file):
