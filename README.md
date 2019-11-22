@@ -1,4 +1,17 @@
 ![image](https://github.com/kentaroy47/frcnn-from-scratch-with-keras/blob/master/images/85.png)
+# Neural Networks Class Notes
+
+Important commands, filepaths may be different (especially after parser is updated)
+Note that we set num_epochs to 1 and length of each epoch to 5 images so that things finish quickly, this will have horrible results
+
+python ../../train_rpn.py -p "sp_input_file.txt" --num_epochs 1 --parser simple --elen 5
+python ../../train_frcnn.py -p "sp_input_file.txt" --num_epochs 1 --parser simple --elen 5
+python ../../test_frcnn.py --path ./ --network vgg
+
+
+
+
+
 # What is this repo?
 - **Simple faster-RCNN codes in Keras!**
 

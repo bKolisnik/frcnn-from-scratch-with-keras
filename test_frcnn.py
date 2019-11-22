@@ -13,8 +13,8 @@ from keras.models import Model
 from keras_frcnn import roi_helpers
 from keras.applications.mobilenet import preprocess_input
 
-from tensorflow.compat.v1 import ConfigProto
-from tensorflow.compat.v1 import InteractiveSession
+from tensorflow import ConfigProto
+from tensorflow import InteractiveSession
 config = ConfigProto()
 config.gpu_options.allow_growth = True
 session = InteractiveSession(config=config)
@@ -166,7 +166,6 @@ classifier = nn.classifier(feature_map_input, roi_input, C.num_rois, nb_classes=
 
 model_rpn = Model(img_input, rpn_layers)
 model_classifier = Model([feature_map_input, roi_input], classifier)
-
 # model loading
 if options.load == None:
   print('Loading weights from {}'.format(C.model_path))
@@ -251,7 +250,6 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
 			probs[cls_name].append(np.max(P_cls[0,ii,:]))
 
 	all_dets = []
-
 	for key in bboxes:
 		print(key)
 		print(len(bboxes[key]))
