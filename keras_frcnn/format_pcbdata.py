@@ -36,7 +36,7 @@ def write_file(input_path,output_file,test_or_train_file):
 	with open(trainval_txt_path,'r') as f:
 		for line in f:
 			defect_txt_path = line.split()[-1]
-			new_path = f'{input_path}/{defect_txt_path}'
+			new_path = os.path.join(input_path,defect_txt_path)
 			write_defects(new_path,output_file)
 
 # 	open defect text file
@@ -49,7 +49,7 @@ def write_defects(input_path,output_file):
 		jpg_path = input_path.replace('.txt','_test.jpg')
 		for line in f:
 			formatted_line = line.rstrip().replace(' ',',')
-			new_line = f'{jpg_path},{formatted_line}\n'
+			new_line = jpg_path + ',' + formatted_line + '\n'
 			output_file.write(new_line)
 
 if __name__ == '__main__':
