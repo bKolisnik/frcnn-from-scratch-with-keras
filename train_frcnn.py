@@ -7,7 +7,7 @@ import numpy as np
 from optparse import OptionParser
 import pickle
 import os
-
+from FeatureDifferencesNetwork import FeatureDifferencesNetwork
 from keras import backend as K
 from keras.optimizers import Adam, SGD, RMSprop
 from keras.layers import Input
@@ -145,24 +145,23 @@ if K.image_dim_ordering() == 'th':
     input_shape_img = (3, None, None)
 else:
     input_shape_img = (None, None, 3)
-
-img_input = Input(shape=input_shape_img)
+baseNetworkClass = FeatureDifferencesNetwork()
+img_input = baseNetworkClass.inputs
 roi_input = Input(shape=(None, 4))
 
 # define the base network (resnet here, can be VGG, Inception, etc)
-shared_layers = nn.nn_base(img_input, trainable=True)
+shared_layers = nn.nn_base(baseNetworkClass.network, trainable=True)
 
 # define the RPN, built on the base layers
 num_anchors = len(C.anchor_box_scales) * len(C.anchor_box_ratios)
 rpn = nn.rpn(shared_layers, num_anchors)
 
 classifier = nn.classifier(shared_layers, roi_input, C.num_rois, nb_classes=len(classes_count), trainable=True)
-
 model_rpn = Model(img_input, rpn[:2])
-model_classifier = Model([img_input, roi_input], classifier)
+model_classifier = Model([img_input[0],img_input[1], roi_input], classifier)
 
 # this is a model that holds both the RPN and the classifier, used to load/save weights for the models
-model_all = Model([img_input, roi_input], rpn[:2] + classifier)
+model_all = Model([img_input[0], img_input[1], roi_input], rpn[:2] + classifier)
 
 # load pretrained weights
 try:
