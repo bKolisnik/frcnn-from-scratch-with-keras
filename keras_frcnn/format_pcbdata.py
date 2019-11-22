@@ -31,8 +31,8 @@ import os
 #		split by space, get last path (path to defect text file)
 #			read_defect_files()
 
-def write_file(input_path,output_file):
-	trainval_txt_path = os.path.join(input_path,'trainval.txt')
+def write_file(input_path,output_file,test_or_train_file):
+	trainval_txt_path = os.path.join(input_path,test_or_train_file)
 	with open(trainval_txt_path,'r') as f:
 		for line in f:
 			defect_txt_path = line.split()[-1]
@@ -53,6 +53,10 @@ def write_defects(input_path,output_file):
 			output_file.write(new_line)
 
 if __name__ == '__main__':
-	output_file = open("sp_input_file.txt","w")
+	output_file = open("sp_train_input_file.txt","w")
 	path = os.path.join(os.getcwd(),'..','PCBData')
-	write_file(path,output_file)
+	write_file(path,output_file,'trainval.txt')
+
+	output_file = open("sp_test_input_file.txt","w")
+	path = os.path.join(os.getcwd(),'..','PCBData')
+	write_file(path,output_file,'test.txt')
