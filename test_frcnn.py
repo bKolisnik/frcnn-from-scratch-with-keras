@@ -200,7 +200,7 @@ visualise = True
 num_rois = C.num_rois
 
 for idx, img_name in enumerate(sorted(os.listdir(img_path))):
-	coords_array = []
+	# coords_array = []
 	if not img_name.lower().endswith(('.bmp', '.jpeg', '.jpg', '.png', '.tif', '.tiff')):
 		continue
 	
@@ -213,14 +213,14 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
 	# plot actual defect locations
 	# this is for path to PCBData
 	# actual_defects_path = img_path.replace('/'+img_name,'_not/'+img_name.replace('_test.jpg','.txt'))
-	actual_defects_path = img_path + img_name.replace('_test.jpg','.txt')
+	# actual_defects_path = img_path + img_name.replace('_test.jpg','.txt')
 
-	with open(actual_defects_path,'r') as f:
-		for line in f:
-			coords = map(int,line.split())
-			coords_array.append(coords)
-			cv2.rectangle(img,(coords[0],coords[1]),(coords[2],coords[3]), (255,0,0),1)
-			cv2.putText(img,convert_to_defect(coords[-1]),(coords[0],coords[1]),cv2.FONT_HERSHEY_DUPLEX,0.5,(255,0,0),1)
+	# with open(actual_defects_path,'r') as f:
+	# 	for line in f:
+	# 		coords = map(int,line.split())
+	# 		coords_array.append(coords)
+	# 		cv2.rectangle(img,(coords[0],coords[1]),(coords[2],coords[3]), (255,0,0),1)
+	# 		cv2.putText(img,convert_to_defect(coords[-1]),(coords[0],coords[1]),cv2.FONT_HERSHEY_DUPLEX,0.5,(255,0,0),1)
 	
     # preprocess image
 	X, ratio = format_img(img, C)
@@ -306,7 +306,7 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
               os.mkdir("results")
            cv2.imwrite('./results/{}.png'.format(idx),img)
 
-	print(coords_array)
+	# print(coords_array)
 
 
 
