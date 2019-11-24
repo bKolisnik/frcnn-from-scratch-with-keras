@@ -46,7 +46,8 @@ def write_file(input_path,output_file,test_or_train_file):
 
 def write_defects(input_path,output_file):
 	with open(input_path,'r') as f:
-		jpg_path = input_path.replace('.txt','_test.jpg')
+		
+		jpg_path = input_path.replace('.txt','_test.jpg').replace('_not','')
 		for line in f:
 			formatted_line = line.rstrip().replace(' ',',')
 			new_line = jpg_path + ',' + formatted_line + '\n'
