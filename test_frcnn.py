@@ -113,6 +113,16 @@ def format_img(img, C):
 	img = format_img_channels(img, C)
 	return img, ratio
 
+def convert_to_defect(number):
+	switcher = {
+		1: "open",
+		2: "short",
+		3: "mousebite",
+		4: "spur",
+		5: "copper",
+		6: "pin-hole",
+	}
+	return switcher.get(number,"nothing")
 
 # Method to transform the coordinates of the bounding box to its original size
 def get_real_coordinates(ratio, x1, y1, x2, y2):
@@ -190,11 +200,10 @@ visualise = True
 num_rois = C.num_rois
 
 for idx, img_name in enumerate(sorted(os.listdir(img_path))):
+	coords_array = []
 	if not img_name.lower().endswith(('.bmp', '.jpeg', '.jpg', '.png', '.tif', '.tiff')):
 		continue
 	
-	
-
 	print(img_name)
 	st = time.time()
 	filepath = os.path.join(img_path,img_name)
@@ -205,15 +214,14 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
 	# this is for path to PCBData
 	# actual_defects_path = img_path.replace('/'+img_name,'_not/'+img_name.replace('_test.jpg','.txt'))
 	actual_defects_path = img_path + img_name.replace('_test.jpg','.txt')
-	print("Defects path: " + actual_defects_path)
+
 	with open(actual_defects_path,'r') as f:
 		for line in f:
 			coords = map(int,line.split())
-			print("Coords: ")
-			print(coords)
+			coords_array.append(coords)
 			cv2.rectangle(img,(coords[0],coords[1]),(coords[2],coords[3]), (255,0,0),1)
-			cv2.putText(img,str(coords[-1]),(coords[0],coords[1]),cv2.FONT_HERSHEY_DUPLEX,1,(0,0,0),1)
-
+			cv2.putText(img,convert_to_defect(coords[-1]),(coords[0],coords[1]),cv2.FONT_HERSHEY_DUPLEX,0.5,(255,0,0),1)
+	
     # preprocess image
 	X, ratio = format_img(img, C)
 	img_scaled = (np.transpose(X[0,:,:,:],(1,2,0)) + 127.5).astype('uint8')
@@ -297,3 +305,8 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
            if not os.path.isdir("results"):
               os.mkdir("results")
            cv2.imwrite('./results/{}.png'.format(idx),img)
+
+	print(coords_array)
+
+
+
