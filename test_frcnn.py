@@ -386,14 +386,14 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
 	# plot actual defect locations
 	# this is for path to PCBData
 	# actual_defects_path = img_path.replace('/'+img_name,'_not/'+img_name.replace('_test.jpg','.txt'))
-
-	actual_defects_path = img_path + img_name.replace('_test.jpg','.txt')
-	with open(actual_defects_path,'r') as f:
-		for line in f:
-			coords = map(int,line.split())
-			actual.append(coords)
-			cv2.rectangle(img,(coords[0],coords[1]),(coords[2],coords[3]), (0,0,255),1)
-			cv2.putText(img,convert_to_defect(coords[-1]),(coords[2],coords[3]),cv2.FONT_HERSHEY_DUPLEX,0.5,(0,0,255),1)
+	if '_test.jpg' in img_name:
+		actual_defects_path = img_path + img_name.replace('_test.jpg','.txt')
+		with open(actual_defects_path,'r') as f:
+			for line in f:
+				coords = map(int,line.split())
+				actual.append(coords)
+				cv2.rectangle(img,(coords[0],coords[1]),(coords[2],coords[3]), (0,0,255),1)
+				cv2.putText(img,convert_to_defect(coords[-1]),(coords[2],coords[3]),cv2.FONT_HERSHEY_DUPLEX,0.5,(0,0,255),1)
 
 	print('Elapsed time = {}'.format(time.time() - st))
 	print(all_dets)
