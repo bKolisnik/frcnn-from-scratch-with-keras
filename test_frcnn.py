@@ -302,21 +302,29 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
 	predicted = []
 	if not img_name.lower().endswith(('.bmp', '.jpeg', '.jpg', '.png', '.tif', '.tiff')):
 		continue
-	if img_name.lower().__contains__("temp"):
+	if img_name.lower().__contains__("temp.jpg"):
 		continue
 	print(img_name)
 	st = time.time()
 	filepath = os.path.join(img_path,img_name)
-	templatepath = filepath.replace('test', 'temp')
-	assert  filepath != templatepath
+	templatepath = filepath.replace('test.jpg', 'temp.jpg')
+	print("______________")
+	print("FILEPATH:", filepath)
+	print("TEMPLATEPATH: ", templatepath)
+	assert filepath != templatepath
 
 	img = cv2.imread(filepath)
 	template = cv2.imread(templatepath)
-	
+
+	assert img is not None
+	assert template is not None
+
 	# preprocess image
 	X, ratio = format_img(img, C)
-	X_template, ratio_template = format_img(img, C)
+	X_template, ratio_template = format_img(template, C)
 	img_scaled = (np.transpose(X[0,:,:,:],(1,2,0)) + 127.5).astype('uint8')
+
+	assert ratio == ratio_template
 	if K.image_dim_ordering() == 'tf':
 		X = np.transpose(X, (0, 2, 3, 1))
 		X_template = np.transpose(X_template, (0, 2, 3, 1))
@@ -397,6 +405,7 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
 	# actual_defects_path = img_path.replace('/'+img_name,'_not/'+img_name.replace('_test.jpg','.txt'))
 	actual_defects_path = img_path + img_name.replace('_test.jpg','.txt')
 	with open(actual_defects_path,'r') as f:
+		assert f is not None
 		for line in f:
 			coords = map(int,line.split())
 			actual.append(coords)

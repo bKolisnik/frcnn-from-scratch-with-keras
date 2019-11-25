@@ -16,6 +16,9 @@ def augment(img_data, config, augment=True):
 	img = cv2.imread(img_data_aug['filepath'])
 	template = cv2.imread(img_data_aug['templatepath'])
 
+	assert img is not None
+	assert template is not None
+
 	assert img.shape[:2] == template.shape[:2]
 
 	if augment:
