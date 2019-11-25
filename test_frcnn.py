@@ -302,16 +302,18 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
 	predicted = []
 	if not img_name.lower().endswith(('.bmp', '.jpeg', '.jpg', '.png', '.tif', '.tiff')):
 		continue
-	
+	if img_name.lower().__contains__("temp"):
+		continue
 	print(img_name)
 	st = time.time()
 	filepath = os.path.join(img_path,img_name)
 	templatepath = filepath.replace('test', 'temp')
+	assert  filepath != templatepath
 
 	img = cv2.imread(filepath)
 	template = cv2.imread(templatepath)
 	
-    # preprocess image
+	# preprocess image
 	X, ratio = format_img(img, C)
 	X_template, ratio_template = format_img(img, C)
 	img_scaled = (np.transpose(X[0,:,:,:],(1,2,0)) + 127.5).astype('uint8')
@@ -325,7 +327,7 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
 
 	R = roi_helpers.rpn_to_roi(Y1, Y2, C, K.image_dim_ordering(), overlap_thresh=0.3)
 	print(R.shape)
-    
+
 	# convert from (x1,y1,x2,y2) to (x,y,w,h)
 	R[:, 2] -= R[:, 0]
 	R[:, 3] -= R[:, 1]
@@ -393,26 +395,24 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
 	# plot actual defect locations
 	# this is for path to PCBData
 	# actual_defects_path = img_path.replace('/'+img_name,'_not/'+img_name.replace('_test.jpg','.txt'))
-	if '_test.jpg' in img_name:
-		actual_defects_path = img_path + img_name.replace('_test.jpg','.txt')
-		with open(actual_defects_path,'r') as f:
-			for line in f:
-				coords = map(int,line.split())
-				actual.append(coords)
-				cv2.rectangle(img,(coords[0],coords[1]),(coords[2],coords[3]), (0,0,255),1)
-				cv2.putText(img,convert_to_defect(coords[-1]),(coords[2],coords[3]),cv2.FONT_HERSHEY_DUPLEX,0.5,(0,0,255),1)
+	actual_defects_path = img_path + img_name.replace('_test.jpg','.txt')
+	with open(actual_defects_path,'r') as f:
+		for line in f:
+			coords = map(int,line.split())
+			actual.append(coords)
+			cv2.rectangle(img,(coords[0],coords[1]),(coords[2],coords[3]), (0,0,255),1)
+			cv2.putText(img,convert_to_defect(coords[-1]),(coords[2],coords[3]),cv2.FONT_HERSHEY_DUPLEX,0.5,(0,0,255),1)
 
 	print('Elapsed time = {}'.format(time.time() - st))
 	print(all_dets)
 	print(bboxes)
-    # enable if you want to show pics
+	# enable if you want to show pics
 	if options.write:
-           import os
-           if not os.path.isdir("results"):
-              os.mkdir("results")
-           cv2.imwrite('./results/{}.png'.format(idx),img)
-
-	calculate_IOUS(actual,predicted,TP_FN_FP)
+		import os
+		if not os.path.isdir("results"):
+			os.mkdir("results")
+		cv2.imwrite('./results/{}.png'.format(idx),img)
+		calculate_IOUS(actual,predicted,TP_FN_FP)
 
 
 
