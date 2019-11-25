@@ -6,6 +6,8 @@ import sys
 import pickle
 from optparse import OptionParser
 import time
+
+from FeatureDifferencesNetwork import FeatureDifferencesNetwork
 from keras_frcnn import config
 from keras import backend as K
 from keras.layers import Input
@@ -243,13 +245,13 @@ else:
 	input_shape_img = (None, None, 3)
 	input_shape_features = (None, None, num_features)
 
-
-img_input = Input(shape=input_shape_img)
+baseNetworkClass = FeatureDifferencesNetwork()
+img_input = baseNetworkClass.inputs
 roi_input = Input(shape=(C.num_rois, 4))
 feature_map_input = Input(shape=input_shape_features)
 
 # define the base network (resnet here, can be VGG, Inception, etc)
-shared_layers = nn.nn_base(img_input)
+shared_layers = nn.nn_base(baseNetworkClass.network, trainable=True)
 
 # define the RPN, built on the base layers
 num_anchors = len(C.anchor_box_scales) * len(C.anchor_box_ratios)
@@ -293,16 +295,21 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
 	print(img_name)
 	st = time.time()
 	filepath = os.path.join(img_path,img_name)
+	templatepath = filepath.replace('test', 'temp')
 
 	img = cv2.imread(filepath)
+	template = cv2.imread(templatepath)
 	
     # preprocess image
 	X, ratio = format_img(img, C)
+	X_template, ratio_template = format_img(img, C)
 	img_scaled = (np.transpose(X[0,:,:,:],(1,2,0)) + 127.5).astype('uint8')
 	if K.image_dim_ordering() == 'tf':
 		X = np.transpose(X, (0, 2, 3, 1))
+		X_template = np.transpose(X_template, (0, 2, 3, 1))
+
 	# get the feature maps and output from the RPN
-	[Y1, Y2, F] = model_rpn.predict(X)
+	[Y1, Y2, F] = model_rpn.predict([X, X_template])
 	
 
 	R = roi_helpers.rpn_to_roi(Y1, Y2, C, K.image_dim_ordering(), overlap_thresh=0.3)
