@@ -113,6 +113,17 @@ def format_img(img, C):
 	img = format_img_channels(img, C)
 	return img, ratio
 
+# Method to transform the coordinates of the bounding box to its original size
+def get_real_coordinates(ratio, x1, y1, x2, y2):
+
+	real_x1 = int(round(x1 // ratio))
+	real_y1 = int(round(y1 // ratio))
+	real_x2 = int(round(x2 // ratio))
+	real_y2 = int(round(y2 // ratio))
+
+	return (real_x1, real_y1, real_x2 ,real_y2)
+
+# Converts numerical classification to defect label
 def convert_to_defect(number):
 	switcher = {
 		1: "open",
@@ -124,15 +135,87 @@ def convert_to_defect(number):
 	}
 	return switcher.get(number,"nothing")
 
-# Method to transform the coordinates of the bounding box to its original size
-def get_real_coordinates(ratio, x1, y1, x2, y2):
+def bb_intersection_over_union(boxA, boxB):
+	# determine the (x, y)-coordinates of the intersection rectangle
 
-	real_x1 = int(round(x1 // ratio))
-	real_y1 = int(round(y1 // ratio))
-	real_x2 = int(round(x2 // ratio))
-	real_y2 = int(round(y2 // ratio))
+	xA = max(boxA[0], boxB[0])
+	yA = max(boxA[1], boxB[1])
+	xB = min(boxA[2], boxB[2])
+	yB = min(boxA[3], boxB[3])
 
-	return (real_x1, real_y1, real_x2 ,real_y2)
+	# compute the area of intersection rectangle
+	interArea = max(0, xB - xA + 1) * max(0, yB - yA + 1)
+ 
+	# compute the area of both the prediction and ground-truth
+	# rectangles
+	boxAArea = (boxA[2] - boxA[0] + 1) * (boxA[3] - boxA[1] + 1)
+	boxBArea = (boxB[2] - boxB[0] + 1) * (boxB[3] - boxB[1] + 1)
+ 
+	# compute the intersection over union by taking the intersection
+	# area and dividing it by the sum of prediction + ground-truth
+	# areas - the interesection area
+	iou = interArea / float(boxAArea + boxBArea - interArea)
+ 
+	# return the intersection over union value
+	return iou
+
+# matches predicted vs actual bounding boxes
+def calculate_IOUS(actual,predicted,TP_FN_FP):
+	#TP_FN_FP[1] += len(actual) - len(predicted)
+	IOUS = []
+	actual_bb = []
+
+	for i, bb_predicted in enumerate(predicted):
+		highest_IOU = 0
+		highest_IOU_actual_idx = 0
+
+		for j, bb_actual in enumerate(actual):
+			IOU = bb_intersection_over_union(bb_predicted,bb_actual)
+			if  IOU > highest_IOU:
+				highest_IOU = IOU
+				highest_IOU_actual_idx = j
+
+		actual_bb.append(actual[highest_IOU_actual_idx])
+		actual.pop(highest_IOU_actual_idx)
+		IOUS.append([highest_IOU,bb_predicted])
+	
+	for i,IOU in enumerate(IOUS):
+		defect_num = IOU[-1][-1]
+		if IOU[1] >= 0.5:
+			if defect_num == actual_bb[i][-1]:
+				TP_FN_FP[defect_num-1][0] += 1
+			else: 
+				TP_FN_FP[defect_num-1][1] += 1
+		else:
+			if defect_num == actual_bb[i][-1]:
+				TP_FN_FP[defect_num-1][2] += 1
+	
+	for bb in actual:
+		TP_FN_FP[bb[-1]-1][1] += 1
+
+def calculate_mAP(TP_FN_FP):
+	for defect_class in TP_FN_FP:
+		TP = defect_class[0]
+		FN = defect_class[1]
+		FP = defect_class[2]
+		precision = TP / (TP + FP)
+		recall = TP / (TP + FN)
+
+	
+
+# returns coordinates of bounding boxes ordered by classification number
+def reorder_by_classification(coords):
+	# reorder boxes by classification number
+	classes = []
+	ordered = []
+	for coord in coords:
+		classes.append(coord[-1])
+	# get indices of sorted classes
+	idxs = np.argsort(classes)
+	for i in idxs:
+		ordered.append(coords[i])	
+	return ordered
+
 
 class_mapping = C.class_mapping
 
@@ -199,8 +282,11 @@ visualise = True
 
 num_rois = C.num_rois
 
+TP_FN_FP = [[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0]]
+
 for idx, img_name in enumerate(sorted(os.listdir(img_path))):
-	# coords_array = []
+	actual = []
+	predicted = []
 	if not img_name.lower().endswith(('.bmp', '.jpeg', '.jpg', '.png', '.tif', '.tiff')):
 		continue
 	
@@ -209,18 +295,6 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
 	filepath = os.path.join(img_path,img_name)
 
 	img = cv2.imread(filepath)
-
-	# plot actual defect locations
-	# this is for path to PCBData
-	# actual_defects_path = img_path.replace('/'+img_name,'_not/'+img_name.replace('_test.jpg','.txt'))
-	# actual_defects_path = img_path + img_name.replace('_test.jpg','.txt')
-
-	# with open(actual_defects_path,'r') as f:
-	# 	for line in f:
-	# 		coords = map(int,line.split())
-	# 		coords_array.append(coords)
-	# 		cv2.rectangle(img,(coords[0],coords[1]),(coords[2],coords[3]), (255,0,0),1)
-	# 		cv2.putText(img,convert_to_defect(coords[-1]),(coords[0],coords[1]),cv2.FONT_HERSHEY_DUPLEX,0.5,(255,0,0),1)
 	
     # preprocess image
 	X, ratio = format_img(img, C)
@@ -285,16 +359,30 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
 			(real_x1, real_y1, real_x2, real_y2) = get_real_coordinates(ratio, x1, y1, x2, y2)
 
 			cv2.rectangle(img,(real_x1, real_y1), (real_x2, real_y2), (int(class_to_color[key][0]), int(class_to_color[key][1]), int(class_to_color[key][2])),2)
-
-			textLabel = '{}: {}'.format(key,int(100*new_probs[jk]))
+			
+			textLabel = '{}: Probability {}%'.format(convert_to_defect(int(key)),int(100*new_probs[jk]))
 			all_dets.append((key,100*new_probs[jk]))
 
-			(retval,baseLine) = cv2.getTextSize(textLabel,cv2.FONT_HERSHEY_COMPLEX,1,1)
-			textOrg = (real_x1, real_y1-0)
+			predicted.append([real_x1,real_y1,real_x2,real_y2,int(key)])
 
-			cv2.rectangle(img, (textOrg[0] - 5, textOrg[1]+baseLine - 5), (textOrg[0]+retval[0] + 5, textOrg[1]-retval[1] - 5), (0, 0, 0), 2)
-			cv2.rectangle(img, (textOrg[0] - 5,textOrg[1]+baseLine - 5), (textOrg[0]+retval[0] + 5, textOrg[1]-retval[1] - 5), (255, 255, 255), -1)
-			cv2.putText(img, textLabel, textOrg, cv2.FONT_HERSHEY_DUPLEX, 1, (0, 0, 0), 1)
+			(retval,baseLine) = cv2.getTextSize(textLabel,cv2.FONT_HERSHEY_COMPLEX,1,1)
+			textOrg = (real_x2, real_y1-0)
+
+			#cv2.rectangle(img, (textOrg[0] - 5, textOrg[1]+baseLine - 5), (textOrg[0]+retval[0] + 5, textOrg[1]-retval[1] - 5), (0, 0, 0), 2)
+			#cv2.rectangle(img, (textOrg[0] - 5,textOrg[1]+baseLine - 5), (textOrg[0]+retval[0] + 5, textOrg[1]-retval[1] - 5), (255, 255, 255), -1)
+			cv2.putText(img, textLabel, textOrg, cv2.FONT_HERSHEY_DUPLEX, 0.5, (255, 0, 0), 1)
+	
+	# plot actual defect locations
+	# this is for path to PCBData
+	# actual_defects_path = img_path.replace('/'+img_name,'_not/'+img_name.replace('_test.jpg','.txt'))
+
+	actual_defects_path = img_path + img_name.replace('_test.jpg','.txt')
+	with open(actual_defects_path,'r') as f:
+		for line in f:
+			coords = map(int,line.split())
+			actual.append(coords)
+			cv2.rectangle(img,(coords[0],coords[1]),(coords[2],coords[3]), (0,0,255),1)
+			cv2.putText(img,convert_to_defect(coords[-1]),(coords[2],coords[3]),cv2.FONT_HERSHEY_DUPLEX,0.5,(0,0,255),1)
 
 	print('Elapsed time = {}'.format(time.time() - st))
 	print(all_dets)
@@ -306,7 +394,17 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
               os.mkdir("results")
            cv2.imwrite('./results/{}.png'.format(idx),img)
 
-	# print(coords_array)
+	# print("\n\nActual: \n")
+	# print(reorder_by_classification(actual))
+	# print("\n\nPredicted: \n")
+	# print(reorder_by_classification(predicted))
+	calculate_IOUS(actual,predicted,TP_FN_FP)
+
+
+
+print("\nTP_FN_FP: \n")
+print(TP_FN_FP)
+
 
 
 
