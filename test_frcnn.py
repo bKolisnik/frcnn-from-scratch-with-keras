@@ -195,14 +195,25 @@ def calculate_IOUS(actual,predicted,TP_FN_FP):
 	for bb in actual:
 		TP_FN_FP[bb[-1]-1][1] += 1
 
-def calculate_mAP(TP_FN_FP):
-	for defect_class in TP_FN_FP:
+def return_results(TP_FN_FP):
+	precision = [0,0,0,0,0,0]
+	recall = [0,0,0,0,0,0]
+	f1 = [0,0,0,0,0,0]
+	for i,defect_class in enumerate(TP_FN_FP):
 		TP = defect_class[0]
 		FN = defect_class[1]
 		FP = defect_class[2]
-		precision = TP / (TP + FP)
-		recall = TP / (TP + FN)
-
+		if TP == 0:
+			precision[i] = 0
+			recall[i] = 0
+			f1[i] = 0
+		else:
+			precision[i] = TP / (TP + FP)
+			recall[i] = TP / (TP + FN)
+			f1[i] = precision[i] * recall[i] / (precision[i] + recall[i])
+	return precision, recall, f1
+	
+	
 	
 
 # returns coordinates of bounding boxes ordered by classification number
@@ -382,14 +393,14 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
 	# plot actual defect locations
 	# this is for path to PCBData
 	# actual_defects_path = img_path.replace('/'+img_name,'_not/'+img_name.replace('_test.jpg','.txt'))
-
-	actual_defects_path = img_path + img_name.replace('_test.jpg','.txt')
-	with open(actual_defects_path,'r') as f:
-		for line in f:
-			coords = map(int,line.split())
-			actual.append(coords)
-			cv2.rectangle(img,(coords[0],coords[1]),(coords[2],coords[3]), (0,0,255),1)
-			cv2.putText(img,convert_to_defect(coords[-1]),(coords[2],coords[3]),cv2.FONT_HERSHEY_DUPLEX,0.5,(0,0,255),1)
+	if '_test.jpg' in img_name:
+		actual_defects_path = img_path + img_name.replace('_test.jpg','.txt')
+		with open(actual_defects_path,'r') as f:
+			for line in f:
+				coords = map(int,line.split())
+				actual.append(coords)
+				cv2.rectangle(img,(coords[0],coords[1]),(coords[2],coords[3]), (0,0,255),1)
+				cv2.putText(img,convert_to_defect(coords[-1]),(coords[2],coords[3]),cv2.FONT_HERSHEY_DUPLEX,0.5,(0,0,255),1)
 
 	print('Elapsed time = {}'.format(time.time() - st))
 	print(all_dets)
@@ -401,10 +412,6 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
               os.mkdir("results")
            cv2.imwrite('./results/{}.png'.format(idx),img)
 
-	# print("\n\nActual: \n")
-	# print(reorder_by_classification(actual))
-	# print("\n\nPredicted: \n")
-	# print(reorder_by_classification(predicted))
 	calculate_IOUS(actual,predicted,TP_FN_FP)
 
 
@@ -412,6 +419,13 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
 print("\nTP_FN_FP: \n")
 print(TP_FN_FP)
 
+prec,rec,f1 = return_results(TP_FN_FP)
+for i in range(0,6):
+	print("\n" + convert_to_defect(i+1))
+	print("\nPrecision: " + str(prec[i]))
+	print("\nRecall: " + str(rec[i]))
+	print("\nF1: " + str(f1[i]))
 
-
-
+print("\n\nmAP: " + str(np.mean(prec)))
+print("\nMean Recall: " + str(np.mean(rec)))
+print("\nMean F1: " + str(np.mean(f1)))
