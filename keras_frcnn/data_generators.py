@@ -295,12 +295,12 @@ def get_anchor_gt(all_img_data, class_count, C, img_length_calc_function, backen
 				# read in image, and optionally add augmentation
 
 				if mode == 'train':
-					img_data_aug, x_img = data_augment.augment(img_data, C, augment=True)
+					img_data_aug, defect_img, template_img = data_augment.augment(img_data, C, augment=True)
 				else:
-					img_data_aug, x_img = data_augment.augment(img_data, C, augment=False)
+					img_data_aug, defect_img, template_img = data_augment.augment(img_data, C, augment=False)
 
 				(width, height) = (img_data_aug['width'], img_data_aug['height'])
-				(rows, cols, _) = x_img.shape
+				(rows, cols, _) = defect_img.shape
 
 				assert cols == width
 				assert rows == height
@@ -309,7 +309,8 @@ def get_anchor_gt(all_img_data, class_count, C, img_length_calc_function, backen
 				(resized_width, resized_height) = get_new_img_size(width, height, C.im_size)
 
 				# resize the image so that smalles side is length = 600px
-				x_img = cv2.resize(x_img, (resized_width, resized_height), interpolation=cv2.INTER_CUBIC)
+				defect_img = cv2.resize(defect_img, (resized_width, resized_height), interpolation=cv2.INTER_CUBIC)
+				template_img = cv2.resize(template_img, (resized_width, resized_height), interpolation=cv2.INTER_CUBIC)
 
 				try:
 					y_rpn_cls, y_rpn_regr = calc_rpn(C, img_data_aug, width, height, resized_width, resized_height, img_length_calc_function)
@@ -318,25 +319,37 @@ def get_anchor_gt(all_img_data, class_count, C, img_length_calc_function, backen
 
 				# Zero-center by mean pixel, and preprocess image
 
-				x_img = x_img[:,:, (2, 1, 0)]  # BGR -> RGB
-				x_img = x_img.astype(np.float32)
-				x_img[:, :, 0] -= C.img_channel_mean[0]
-				x_img[:, :, 1] -= C.img_channel_mean[1]
-				x_img[:, :, 2] -= C.img_channel_mean[2]
-				x_img /= C.img_scaling_factor
+				defect_img = defect_img[:,:, (2, 1, 0)]  # BGR -> RGB
+				defect_img = defect_img.astype(np.float32)
+				defect_img[:, :, 0] -= C.img_channel_mean[0]
+				defect_img[:, :, 1] -= C.img_channel_mean[1]
+				defect_img[:, :, 2] -= C.img_channel_mean[2]
+				defect_img /= C.img_scaling_factor
 
-				x_img = np.transpose(x_img, (2, 0, 1))
-				x_img = np.expand_dims(x_img, axis=0)
+				defect_img = np.transpose(defect_img, (2, 0, 1))
+				defect_img = np.expand_dims(defect_img, axis=0)
+
+				template_img = template_img[:,:, (2, 1, 0)]  # BGR -> RGB
+				template_img = template_img.astype(np.float32)
+				template_img[:, :, 0] -= C.img_channel_mean[0]
+				template_img[:, :, 1] -= C.img_channel_mean[1]
+				template_img[:, :, 2] -= C.img_channel_mean[2]
+				template_img /= C.img_scaling_factor
+
+				template_img = np.transpose(template_img, (2, 0, 1))
+				template_img = np.expand_dims(template_img, axis=0)
 
 				y_rpn_regr[:, y_rpn_regr.shape[1]//2:, :, :] *= C.std_scaling
 
 				if backend == 'tf':
-					x_img = np.transpose(x_img, (0, 2, 3, 1))
+					defect_img = np.transpose(defect_img, (0, 2, 3, 1))
+					template_img = np.transpose(template_img, (0, 2, 3, 1))
+
 					y_rpn_cls = np.transpose(y_rpn_cls, (0, 2, 3, 1))
 					y_rpn_regr = np.transpose(y_rpn_regr, (0, 2, 3, 1))
 
-				yield np.copy(x_img), [np.copy(y_rpn_cls), np.copy(y_rpn_regr)], img_data_aug
+				yield np.copy(defect_img), np.copy(template_img),[np.copy(y_rpn_cls), np.copy(y_rpn_regr)], img_data_aug
 
 			except Exception as e:
-				print(e)
+				print("Exception: ", e)
 				continue

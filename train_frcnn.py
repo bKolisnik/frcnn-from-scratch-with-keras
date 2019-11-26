@@ -7,7 +7,7 @@ import numpy as np
 from optparse import OptionParser
 import pickle
 import os
-
+from FeatureDifferencesNetwork import FeatureDifferencesNetwork
 from keras import backend as K
 from keras.optimizers import Adam, SGD, RMSprop
 from keras.layers import Input
@@ -145,24 +145,23 @@ if K.image_dim_ordering() == 'th':
     input_shape_img = (3, None, None)
 else:
     input_shape_img = (None, None, 3)
-
-img_input = Input(shape=input_shape_img)
+baseNetworkClass = FeatureDifferencesNetwork()
+img_input = baseNetworkClass.inputs
 roi_input = Input(shape=(None, 4))
 
 # define the base network (resnet here, can be VGG, Inception, etc)
-shared_layers = nn.nn_base(img_input, trainable=True)
+shared_layers = nn.nn_base(baseNetworkClass.network, trainable=True)
 
 # define the RPN, built on the base layers
 num_anchors = len(C.anchor_box_scales) * len(C.anchor_box_ratios)
 rpn = nn.rpn(shared_layers, num_anchors)
 
 classifier = nn.classifier(shared_layers, roi_input, C.num_rois, nb_classes=len(classes_count), trainable=True)
-
 model_rpn = Model(img_input, rpn[:2])
-model_classifier = Model([img_input, roi_input], classifier)
+model_classifier = Model([img_input[0],img_input[1], roi_input], classifier)
 
 # this is a model that holds both the RPN and the classifier, used to load/save weights for the models
-model_all = Model([img_input, roi_input], rpn[:2] + classifier)
+model_all = Model([img_input[0], img_input[1], roi_input], rpn[:2] + classifier)
 
 # load pretrained weights
 try:
@@ -234,11 +233,11 @@ for epoch_num in range(num_epochs):
 			    print('Average number of overlapping bounding boxes from RPN = {} for {} previous iterations'.format(mean_overlapping_bboxes, epoch_length))
 			    if mean_overlapping_bboxes == 0:
 			      print('RPN is not producing bounding boxes that overlap the ground truth boxes. Check RPN settings or keep training.')
-			X, Y, img_data = next(data_gen_train)
+			X_defect, X_template, Y, img_data = next(data_gen_train)
 
-			loss_rpn = model_rpn.train_on_batch(X, Y)
+			loss_rpn = model_rpn.train_on_batch([X_defect, X_template], Y)
 
-			P_rpn = model_rpn.predict_on_batch(X)
+			P_rpn = model_rpn.predict_on_batch([X_defect, X_template])
 			R = roi_helpers.rpn_to_roi(P_rpn[0], P_rpn[1], C, K.image_dim_ordering(), use_regr=True, overlap_thresh=0.4, max_boxes=300)
 			# note: calc_iou converts from (x1,y1,x2,y2) to (x,y,w,h) format
 			X2, Y1, Y2, IouS = roi_helpers.calc_iou(R, img_data, C, class_mapping)
@@ -283,7 +282,7 @@ for epoch_num in range(num_epochs):
 			    else:
                                 sel_samples = random.choice(pos_samples)
 
-			loss_class = model_classifier.train_on_batch([X, X2[:, sel_samples, :]], [Y1[:, sel_samples, :], Y2[:, sel_samples, :]])
+			loss_class = model_classifier.train_on_batch([X_defect, X_template, X2[:, sel_samples, :]], [Y1[:, sel_samples, :], Y2[:, sel_samples, :]])
 
 			losses[iter_num, 0] = loss_rpn[1]
 			losses[iter_num, 1] = loss_rpn[2]

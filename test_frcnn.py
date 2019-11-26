@@ -6,6 +6,8 @@ import sys
 import pickle
 from optparse import OptionParser
 import time
+
+from FeatureDifferencesNetwork import FeatureDifferencesNetwork
 from keras_frcnn import config
 from keras import backend as K
 from keras.layers import Input
@@ -254,13 +256,13 @@ else:
 	input_shape_img = (None, None, 3)
 	input_shape_features = (None, None, num_features)
 
-
-img_input = Input(shape=input_shape_img)
+baseNetworkClass = FeatureDifferencesNetwork()
+img_input = baseNetworkClass.inputs
 roi_input = Input(shape=(C.num_rois, 4))
 feature_map_input = Input(shape=input_shape_features)
 
 # define the base network (resnet here, can be VGG, Inception, etc)
-shared_layers = nn.nn_base(img_input)
+shared_layers = nn.nn_base(baseNetworkClass.network, trainable=True)
 
 # define the RPN, built on the base layers
 num_anchors = len(C.anchor_box_scales) * len(C.anchor_box_ratios)
@@ -300,25 +302,40 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
 	predicted = []
 	if not img_name.lower().endswith(('.bmp', '.jpeg', '.jpg', '.png', '.tif', '.tiff')):
 		continue
-	
+	if img_name.lower().__contains__("temp.jpg"):
+		continue
 	print(img_name)
 	st = time.time()
 	filepath = os.path.join(img_path,img_name)
+	templatepath = filepath.replace('test.jpg', 'temp.jpg')
+	print("______________")
+	print("FILEPATH:", filepath)
+	print("TEMPLATEPATH: ", templatepath)
+	assert filepath != templatepath
 
 	img = cv2.imread(filepath)
-	
-    # preprocess image
+	template = cv2.imread(templatepath)
+
+	assert img is not None
+	assert template is not None
+
+	# preprocess image
 	X, ratio = format_img(img, C)
+	X_template, ratio_template = format_img(template, C)
 	img_scaled = (np.transpose(X[0,:,:,:],(1,2,0)) + 127.5).astype('uint8')
+
+	assert ratio == ratio_template
 	if K.image_dim_ordering() == 'tf':
 		X = np.transpose(X, (0, 2, 3, 1))
+		X_template = np.transpose(X_template, (0, 2, 3, 1))
+
 	# get the feature maps and output from the RPN
-	[Y1, Y2, F] = model_rpn.predict(X)
+	[Y1, Y2, F] = model_rpn.predict([X, X_template])
 	
 
 	R = roi_helpers.rpn_to_roi(Y1, Y2, C, K.image_dim_ordering(), overlap_thresh=0.3)
 	print(R.shape)
-    
+
 	# convert from (x1,y1,x2,y2) to (x,y,w,h)
 	R[:, 2] -= R[:, 0]
 	R[:, 3] -= R[:, 1]
@@ -386,26 +403,25 @@ for idx, img_name in enumerate(sorted(os.listdir(img_path))):
 	# plot actual defect locations
 	# this is for path to PCBData
 	# actual_defects_path = img_path.replace('/'+img_name,'_not/'+img_name.replace('_test.jpg','.txt'))
-	if '_test.jpg' in img_name:
-		actual_defects_path = img_path + img_name.replace('_test.jpg','.txt')
-		with open(actual_defects_path,'r') as f:
-			for line in f:
-				coords = map(int,line.split())
-				actual.append(coords)
-				cv2.rectangle(img,(coords[0],coords[1]),(coords[2],coords[3]), (0,0,255),1)
-				cv2.putText(img,convert_to_defect(coords[-1]),(coords[2],coords[3]),cv2.FONT_HERSHEY_DUPLEX,0.5,(0,0,255),1)
+	actual_defects_path = img_path + img_name.replace('_test.jpg','.txt')
+	with open(actual_defects_path,'r') as f:
+		assert f is not None
+		for line in f:
+			coords = map(int,line.split())
+			actual.append(coords)
+			cv2.rectangle(img,(coords[0],coords[1]),(coords[2],coords[3]), (0,0,255),1)
+			cv2.putText(img,convert_to_defect(coords[-1]),(coords[2],coords[3]),cv2.FONT_HERSHEY_DUPLEX,0.5,(0,0,255),1)
 
 	print('Elapsed time = {}'.format(time.time() - st))
 	print(all_dets)
 	print(bboxes)
-    # enable if you want to show pics
+	# enable if you want to show pics
 	if options.write:
-           import os
-           if not os.path.isdir("results"):
-              os.mkdir("results")
-           cv2.imwrite('./results/{}.png'.format(idx),img)
-
-	calculate_IOUS(actual,predicted,TP_FN_FP)
+		import os
+		if not os.path.isdir("results"):
+			os.mkdir("results")
+		cv2.imwrite('./results/{}.png'.format(idx),img)
+		calculate_IOUS(actual,predicted,TP_FN_FP)
 
 
 

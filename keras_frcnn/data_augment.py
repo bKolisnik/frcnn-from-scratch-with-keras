@@ -9,15 +9,24 @@ def augment(img_data, config, augment=True):
 	assert 'width' in img_data
 	assert 'height' in img_data
 
+	assert 'templatepath' in img_data
+
 	img_data_aug = copy.deepcopy(img_data)
 
 	img = cv2.imread(img_data_aug['filepath'])
+	template = cv2.imread(img_data_aug['templatepath'])
+
+	assert img is not None
+	assert template is not None
+
+	assert img.shape[:2] == template.shape[:2]
 
 	if augment:
 		rows, cols = img.shape[:2]
 
 		if config.use_horizontal_flips and np.random.randint(0, 2) == 0:
 			img = cv2.flip(img, 1)
+			template = cv2.flip(template, 1)
 			for bbox in img_data_aug['bboxes']:
 				x1 = bbox['x1']
 				x2 = bbox['x2']
@@ -26,6 +35,7 @@ def augment(img_data, config, augment=True):
 
 		if config.use_vertical_flips and np.random.randint(0, 2) == 0:
 			img = cv2.flip(img, 0)
+			template = cv2.flip(template, 0)
 			for bbox in img_data_aug['bboxes']:
 				y1 = bbox['y1']
 				y2 = bbox['y2']
@@ -36,12 +46,17 @@ def augment(img_data, config, augment=True):
 			angle = np.random.choice([0,90,180,270],1)[0]
 			if angle == 270:
 				img = np.transpose(img, (1,0,2))
+				template = np.transpose(template, (1,0,2))
 				img = cv2.flip(img, 0)
+				template = cv2.flip(template, 0)
 			elif angle == 180:
 				img = cv2.flip(img, -1)
+				template = cv2.flip(template, -1)
 			elif angle == 90:
 				img = np.transpose(img, (1,0,2))
+				template = np.transpose(template, (1,0,2))
 				img = cv2.flip(img, 1)
+				template = cv2.flip(template, 1)
 			elif angle == 0:
 				pass
 
@@ -70,4 +85,4 @@ def augment(img_data, config, augment=True):
 
 	img_data_aug['width'] = img.shape[1]
 	img_data_aug['height'] = img.shape[0]
-	return img_data_aug, img
+	return img_data_aug, img, template

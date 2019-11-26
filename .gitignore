@@ -95,3 +95,6 @@ ENV/
 .idea/
 Pipfile*
 results/
+*.pickle
+*/sp_test_input_file.txt
+*/sp_train_input_file.txt

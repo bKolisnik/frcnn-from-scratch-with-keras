@@ -36,6 +36,7 @@ def get_data(input_path, cat = None):
 				img = cv2.imread(filename)
 				(rows,cols) = img.shape[:2]
 				all_imgs[filename]['filepath'] = filename
+				all_imgs[filename]['templatepath'] = filename.replace('test', 'temp')
 				all_imgs[filename]['width'] = cols
 				all_imgs[filename]['height'] = rows
 				all_imgs[filename]['bboxes'] = []
